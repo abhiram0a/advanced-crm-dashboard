@@ -1,40 +1,60 @@
 "use client";
 
 import {
-  Check,
-  ChevronDown,
-  Filter,
-  X,
-} from "lucide-react";
+    Check,
+    ChevronDown,
+    Filter,
+    Save,
+    Trash2,
+    X,
+  } from "lucide-react";
+
+import { useState } from "react";
 
 import type { CustomerFilterState } from "@/types/customerFilters";
+import type { SavedFilter } from "@/types/savedFilters";
 
 interface CustomerFiltersProps {
-  isOpen: boolean;
-  filters: CustomerFilterState;
-  companies: string[];
-  activeFilterCount: number;
-  onChange: (
-    filters: CustomerFilterState,
-  ) => void;
-  onApply: () => void;
-  onClear: () => void;
-  onClose: () => void;
-}
-
-export default function CustomerFilters({
-  isOpen,
-  filters,
-  companies,
-  activeFilterCount,
-  onChange,
-  onApply,
-  onClear,
-  onClose,
-}: CustomerFiltersProps) {
-  if (!isOpen) {
-    return null;
+    isOpen: boolean;
+    filters: CustomerFilterState;
+    companies: string[];
+    activeFilterCount: number;
+    savedFilters: SavedFilter[];
+    onChange: (
+      filters: CustomerFilterState,
+    ) => void;
+    onApply: () => void;
+    onClear: () => void;
+    onClose: () => void;
+    onSave: (name: string) => void;
+    onApplySavedFilter: (
+      savedFilter: SavedFilter,
+    ) => void;
+    onDeleteSavedFilter: (
+      savedFilterId: string,
+    ) => void;
   }
+
+  export default function CustomerFilters({
+    isOpen,
+    filters,
+    companies,
+    activeFilterCount,
+    savedFilters,
+    onChange,
+    onApply,
+    onClear,
+    onClose,
+    onSave,
+    onApplySavedFilter,
+    onDeleteSavedFilter,
+  }: CustomerFiltersProps) {
+    const [isSaving, setIsSaving] = useState(false);
+    const [filterName, setFilterName] = useState("");
+  
+    if (!isOpen) {
+      return null;
+    }
 
   const toggleStatus = (
     status: "Active" | "Inactive" | "Lead",
@@ -107,6 +127,71 @@ export default function CustomerFilters({
           >
             <X className="h-5 w-5" />
           </button>
+        </div>
+
+        {/* Save current filter */}
+        <div className="border-b border-slate-800 px-5 py-4">
+        {!isSaving ? (
+            <button
+            type="button"
+            onClick={() => {
+                setFilterName("");
+                setIsSaving(true);
+            }}
+            disabled={activeFilterCount === 0}
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+            <Save className="h-4 w-4" />
+            Save Filter
+            </button>
+        ) : (
+            <div className="space-y-3">
+            <label
+                htmlFor="saved-filter-name"
+                className="block text-sm font-medium text-slate-200"
+            >
+                Filter name
+            </label>
+
+            <input
+                id="saved-filter-name"
+                type="text"
+                value={filterName}
+                onChange={(event) =>
+                setFilterName(event.target.value)
+                }
+                placeholder="e.g. High-value prospects"
+                autoFocus
+                className="h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
+            />
+
+            <div className="flex gap-2">
+                <button
+                type="button"
+                onClick={() => {
+                    setFilterName("");
+                    setIsSaving(false);
+                }}
+                className="flex-1 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-300 transition hover:bg-slate-800"
+                >
+                Cancel
+                </button>
+
+                <button
+                type="button"
+                disabled={!filterName.trim()}
+                onClick={() => {
+                    onSave(filterName.trim());
+                    setFilterName("");
+                    setIsSaving(false);
+                }}
+                className="flex-1 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                Save
+                </button>
+            </div>
+            </div>
+        )}
         </div>
 
         {/* Filter content */}
@@ -350,6 +435,52 @@ export default function CustomerFilters({
                 className="h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
               />
             </section>
+
+            {/* Saved filters */}
+            {savedFilters.length > 0 && (
+            <section>
+                <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-medium text-slate-200">
+                    Saved Filters
+                </h3>
+                </div>
+
+                <div className="space-y-2">
+                {savedFilters.map((savedFilter) => (
+                    <div
+                    key={savedFilter.id}
+                    className="group flex items-center gap-2 rounded-md border border-slate-800 bg-slate-900 p-2"
+                    >
+                    <button
+                        type="button"
+                        onClick={() =>
+                        onApplySavedFilter(savedFilter)
+                        }
+                        className="flex-1 rounded-md px-2 py-2 text-left text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                    >
+                        {savedFilter.name}
+                    </button>
+
+                    {!savedFilter.isTemplate && (
+                        <button
+                        type="button"
+                        onClick={() =>
+                            onDeleteSavedFilter(
+                            savedFilter.id,
+                            )
+                        }
+                        aria-label={`Delete ${savedFilter.name}`}
+                        className="rounded-md p-2 text-slate-600 transition hover:bg-red-950/40 hover:text-red-400"
+                        >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                    )}
+                    </div>
+                ))}
+                </div>
+            </section>
+            )}
+
           </div>
         </div>
 

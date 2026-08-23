@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -17,6 +18,9 @@ import {
   emptyCustomerFilters,
   type CustomerFilterState,
 } from "@/types/customerFilters";
+
+import type { SavedFilter } from "@/types/savedFilters";
+
 
 type SortField =
   | "name"
@@ -57,6 +61,120 @@ export default function CustomersPage() {
     useState<CustomerFilterState>(
       emptyCustomerFilters,
     );
+
+    const [savedFilters, setSavedFilters] =
+    useState<SavedFilter[]>(() => {
+      if (typeof window === "undefined") {
+        return [];
+      }
+  
+      try {
+        const storedFilters =
+          localStorage.getItem(
+            "crm-saved-filters",
+          );
+  
+        if (!storedFilters) {
+          return [];
+        }
+  
+        return JSON.parse(
+          storedFilters,
+        ) as SavedFilter[];
+      } catch {
+        return [];
+      }
+    });
+
+
+
+      useEffect(() => {
+        localStorage.setItem(
+          "crm-saved-filters",
+          JSON.stringify(savedFilters),
+        );
+      }, [savedFilters]);
+
+      const filterTemplates = useMemo<SavedFilter[]>(
+        () => {
+          const latestContactDate =
+            customers.reduce(
+              (latest, customer) =>
+                customer.lastContactDate >
+                latest
+                  ? customer.lastContactDate
+                  : latest,
+              "",
+            );
+      
+          const recentStartDate = (() => {
+            if (!latestContactDate) {
+              return "";
+            }
+      
+            const date = new Date(
+              `${latestContactDate}T00:00:00`,
+            );
+      
+            date.setDate(date.getDate() - 30);
+      
+            return date
+              .toISOString()
+              .split("T")[0];
+          })();
+      
+          return [
+            {
+              id: "template-active-customers",
+              name: "Active Customers",
+              isTemplate: true,
+              filters: {
+                statuses: ["Active"],
+                companies: [],
+                dateFrom: "",
+                dateTo: "",
+                phone: "",
+                email: "",
+              },
+            },
+            {
+              id: "template-recent-contacts",
+              name: "Recent Contacts",
+              isTemplate: true,
+              filters: {
+                statuses: [],
+                companies: [],
+                dateFrom: recentStartDate,
+                dateTo: latestContactDate,
+                phone: "",
+                email: "",
+              },
+            },
+            {
+              id: "template-inactive-leads",
+              name: "Inactive Leads",
+              isTemplate: true,
+              filters: {
+                statuses: ["Inactive"],
+                companies: [],
+                dateFrom: "",
+                dateTo: "",
+                phone: "",
+                email: "",
+              },
+            },
+          ];
+        },
+        [customers],
+      );
+
+      const allSavedFilters = useMemo(
+        () => [
+          ...filterTemplates,
+          ...savedFilters,
+        ],
+        [filterTemplates, savedFilters],
+      );
 
   /*
    * Build the company list directly from the
@@ -308,6 +426,61 @@ export default function CustomersPage() {
    * Apply the draft filter values to the
    * actual customer dataset.
    */
+
+  const handleSaveFilter = (
+    name: string,
+  ) => {
+    const newSavedFilter: SavedFilter = {
+      id: `saved-${Date.now()}`,
+      name,
+      filters: {
+        ...appliedFilters,
+        statuses: [
+          ...appliedFilters.statuses,
+        ],
+        companies: [
+          ...appliedFilters.companies,
+        ],
+      },
+    };
+  
+    setSavedFilters((current) => [
+      ...current,
+      newSavedFilter,
+    ]);
+  };
+
+  const handleApplySavedFilter = (
+    savedFilter: SavedFilter,
+  ) => {
+    const restoredFilters = {
+      ...savedFilter.filters,
+      statuses: [
+        ...savedFilter.filters.statuses,
+      ],
+      companies: [
+        ...savedFilter.filters.companies,
+      ],
+    };
+  
+    setDraftFilters(restoredFilters);
+    setAppliedFilters(restoredFilters);
+    setCurrentPage(1);
+    setIsFilterOpen(false);
+  };
+
+  const handleDeleteSavedFilter = (
+    savedFilterId: string,
+  ) => {
+    setSavedFilters((current) =>
+      current.filter(
+        (savedFilter) =>
+          savedFilter.id !==
+          savedFilterId,
+      ),
+    );
+  };
+
   const handleApplyFilters = () => {
     setAppliedFilters(draftFilters);
     setCurrentPage(1);
@@ -580,18 +753,27 @@ export default function CustomersPage() {
       )}
 
       {/* Advanced filters drawer */}
-      <CustomerFilters
+
+        <CustomerFilters
         isOpen={isFilterOpen}
         filters={draftFilters}
         companies={companies}
         activeFilterCount={activeFilterCount}
+        savedFilters={allSavedFilters}
         onChange={setDraftFilters}
         onApply={handleApplyFilters}
         onClear={handleClearFilters}
         onClose={() =>
-          setIsFilterOpen(false)
+            setIsFilterOpen(false)
         }
-      />
+        onSave={handleSaveFilter}
+        onApplySavedFilter={
+            handleApplySavedFilter
+        }
+        onDeleteSavedFilter={
+            handleDeleteSavedFilter
+        }
+        />
     </main>
   );
 }
