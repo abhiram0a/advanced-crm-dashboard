@@ -1,18 +1,25 @@
-// import Image from "next/image";
-export default function Home() {
+export default function DashboardPage() {
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-3xl font-semibold">
-            CRM Dashboard
-          </h1>
+    <section className="p-4 sm:p-6 lg:p-8">
+      <div>
+        <p className="text-sm text-slate-500">
+          Overview
+        </p>
 
-          <p className="mt-2 text-slate-400">
-            Advanced customer management dashboard
-          </p>
-        </div>
+        <h1 className="mt-1 text-2xl font-semibold text-white">
+          Dashboard
+        </h1>
+
+        <p className="mt-2 text-sm text-slate-400">
+          Welcome to your CRM workspace.
+        </p>
       </div>
-    </main>
+
+      <div className="mt-8 rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-8 text-center">
+        <p className="text-sm text-slate-400">
+          Dashboard overview will be implemented in the next section.
+        </p>
+      </div>
+    </section>
   );
 }
