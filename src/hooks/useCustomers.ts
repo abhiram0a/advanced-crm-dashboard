@@ -26,6 +26,7 @@ import {
     return useQuery({
       queryKey: customerQueryKeys.list(),
       queryFn: fetchCustomers,
+      staleTime: 30_000,
     });
   }
   
