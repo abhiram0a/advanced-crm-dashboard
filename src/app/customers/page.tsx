@@ -24,6 +24,7 @@ import {
 
 import type { SavedFilter } from "@/types/savedFilters";
 import type { Customer } from "@/types/customer";
+import { useDebounce } from "@/hooks/useDebounce";
 
 
 type SortField =
@@ -44,6 +45,8 @@ export default function CustomersPage() {
   const [searchQuery, setSearchQuery] =
     useState("");
 
+    const debouncedSearchQuery =
+        useDebounce(searchQuery, 300);
   const [sortField, setSortField] =
     useState<SortField>("name");
 
@@ -309,7 +312,7 @@ export default function CustomersPage() {
    * Search + advanced filters + sorting.
    */
   const filteredAndSortedCustomers = useMemo(() => {
-    const query = searchQuery
+    const query = debouncedSearchQuery
       .trim()
       .toLowerCase();
 
@@ -458,9 +461,9 @@ export default function CustomersPage() {
         ? comparison
         : -comparison;
     });
-  }, [
+}, [
     customers,
-    searchQuery,
+    debouncedSearchQuery,
     appliedFilters,
     sortField,
     sortDirection,
@@ -505,6 +508,65 @@ export default function CustomersPage() {
   ) => {
     setPageSize(newPageSize);
     setCurrentPage(1);
+  };
+
+  const handleExportCSV = () => {
+    const headers = [
+      "Name",
+      "Email",
+      "Phone",
+      "Company",
+      "Status",
+      "Last Contact Date",
+    ];
+  
+    const rows = filteredAndSortedCustomers.map(
+      (customer) => [
+        customer.name,
+        customer.email,
+        customer.phone,
+        customer.company,
+        customer.status,
+        customer.lastContactDate,
+      ],
+    );
+  
+    const csv = [
+      headers,
+      ...rows,
+    ]
+      .map((row) =>
+        row
+          .map((value) => {
+            const stringValue = String(
+              value ?? "",
+            );
+  
+            return `"${stringValue.replace(
+              /"/g,
+              '""',
+            )}"`;
+          })
+          .join(","),
+      )
+      .join("\n");
+  
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+  
+    const url = URL.createObjectURL(blob);
+  
+    const link = document.createElement("a");
+  
+    link.href = url;
+    link.download = "customers.csv";
+  
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  
+    URL.revokeObjectURL(url);
   };
 
   /*
@@ -711,6 +773,13 @@ export default function CustomersPage() {
                 </span>
 
                 <span>Add Customer</span>
+            </button>
+            <button
+            type="button"
+            onClick={handleExportCSV}
+            className="inline-flex shrink-0 items-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800"
+            >
+            <span>Export CSV</span>
             </button>
 
             <button
