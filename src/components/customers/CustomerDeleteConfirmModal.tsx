@@ -7,6 +7,8 @@ import {
   X,
 } from "lucide-react";
 
+import { toast } from "sonner";
+
 import { useDeleteCustomer } from "@/hooks/useCustomers";
 
 import type { Customer } from "@/types/customer";
@@ -33,13 +35,17 @@ export default function CustomerDeleteConfirmModal({
 
   const handleDelete = async () => {
     try {
-      await deleteMutation.mutateAsync(
-        customer.id,
-      );
-
+      await deleteMutation.mutateAsync(customer.id);
+  
+      toast.success("Customer deleted successfully.");
+  
       onDeleted();
-    } catch {
-      // Error is displayed below using mutation.error.
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to delete customer.",
+      );
     }
   };
 

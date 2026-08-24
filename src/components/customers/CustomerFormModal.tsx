@@ -1,12 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, X } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 import {
   useCreateCustomer,
   useUpdateCustomer,
 } from "@/hooks/useCustomers";
+
+import {
+  customerFormSchema,
+  type CustomerFormValues,
+} from "@/lib/customerValidation";
 
 import type {
   Customer,
@@ -19,19 +36,9 @@ interface CustomerFormModalProps {
   onClose: () => void;
 }
 
-interface FormState {
-  name: string;
-  email: string;
-  phone: string;
-  company: string;
-  status: CustomerStatus;
-  lastContactDate: string;
-  notes: string;
-}
-
 function getInitialFormState(
   customer?: Customer | null,
-): FormState {
+): CustomerFormValues {
   if (customer) {
     return {
       name: customer.name,
@@ -50,7 +57,7 @@ function getInitialFormState(
     email: "",
     phone: "",
     company: "",
-    status: "Lead",
+    status: "Lead" as CustomerStatus,
     lastContactDate: "",
     notes: "",
   };
@@ -69,100 +76,67 @@ export default function CustomerFormModal({
 
   const isEditMode = Boolean(customer);
 
-  const [form, setForm] = useState<FormState>(() =>
-    getInitialFormState(customer),
-  );
+  const isSubmitting =
+    createCustomerMutation.isPending ||
+    updateCustomerMutation.isPending;
 
-  const [formError, setFormError] =
-    useState("");
+  const form = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerFormSchema),
+    defaultValues: getInitialFormState(customer),
+    mode: "onTouched",
+  });
 
-  const updateField = (
-    field: keyof FormState,
-    value: string,
-  ) => {
-    setForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  };
+  useEffect(() => {
+    form.reset(getInitialFormState(customer));
+  }, [customer, form]);
 
   const handleSubmit = async (
-    event: React.FormEvent<HTMLFormElement>,
+    values: CustomerFormValues,
   ) => {
-    event.preventDefault();
-
-    setFormError("");
-
-    if (!form.name.trim()) {
-      setFormError("Name is required.");
-      return;
-    }
-
-    if (!form.email.trim()) {
-      setFormError("Email is required.");
-      return;
-    }
-
-    if (!form.phone.trim()) {
-      setFormError("Phone is required.");
-      return;
-    }
-
-    if (!form.company.trim()) {
-      setFormError("Company is required.");
-      return;
-    }
-
-    if (!form.lastContactDate) {
-      setFormError(
-        "Last contact date is required.",
-      );
-      return;
-    }
-
     try {
       if (isEditMode && customer) {
         await updateCustomerMutation.mutateAsync({
           customerId: customer.id,
           input: {
-            name: form.name.trim(),
-            email: form.email.trim(),
-            phone: form.phone.trim(),
-            company: form.company.trim(),
-            status: form.status,
+            name: values.name.trim(),
+            email: values.email.trim(),
+            phone: values.phone.trim(),
+            company: values.company.trim(),
+            status: values.status,
             lastContactDate:
-              form.lastContactDate,
-            notes: form.notes.trim(),
+              values.lastContactDate,
+            notes: values.notes.trim(),
           },
         });
+
+        toast.success("Customer updated successfully.");
       } else {
         await createCustomerMutation.mutateAsync({
-          name: form.name.trim(),
-          email: form.email.trim(),
-          phone: form.phone.trim(),
-          company: form.company.trim(),
-          status: form.status,
+          name: values.name.trim(),
+          email: values.email.trim(),
+          phone: values.phone.trim(),
+          company: values.company.trim(),
+          status: values.status,
           lastContactDate:
-            form.lastContactDate,
-          notes: form.notes.trim(),
+            values.lastContactDate,
+          notes: values.notes.trim(),
         });
+
+        toast.success("Customer added successfully.");
       }
 
       onClose();
     } catch (error) {
-      setFormError(
+      const message =
         error instanceof Error
           ? error.message
           : isEditMode
             ? "Unable to update customer."
-            : "Unable to create customer.",
-      );
+            : "Unable to create customer.";
+
+      toast.error(message);
     }
   };
-
-  const isSubmitting =
-    createCustomerMutation.isPending ||
-    updateCustomerMutation.isPending;
 
   return (
     <div
@@ -171,10 +145,11 @@ export default function CustomerFormModal({
       aria-modal="true"
       aria-labelledby="customer-form-title"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          if (!isSubmitting) {
-            onClose();
-          }
+        if (
+          event.target === event.currentTarget &&
+          !isSubmitting
+        ) {
+          onClose();
         }
       }}
     >
@@ -210,246 +185,226 @@ export default function CustomerFormModal({
         </div>
 
         {/* Form */}
-        <form
-          onSubmit={handleSubmit}
-          className="max-h-[80vh] overflow-y-auto"
-        >
-          <div className="grid gap-4 px-5 py-5 sm:grid-cols-2 sm:px-6">
-            {/* Name */}
-            <div className="sm:col-span-2">
-              <label
-                htmlFor="customer-name"
-                className="mb-2 block text-sm font-medium text-slate-300"
-              >
-                Name
-              </label>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="max-h-[80vh] overflow-y-auto"
+          >
+            <div className="grid gap-4 px-5 py-5 sm:grid-cols-2 sm:px-6">
+              {/* Name */}
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>Name</FormLabel>
 
-              <input
-                id="customer-name"
-                type="text"
-                value={form.name}
-                onChange={(event) =>
-                  updateField(
-                    "name",
-                    event.target.value,
-                  )
-                }
-                placeholder="Enter customer name"
-                disabled={isSubmitting}
-                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
+                    <FormControl>
+                      <input
+                        {...field}
+                        type="text"
+                        placeholder="Enter customer name"
+                        disabled={isSubmitting}
+                        className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Email */}
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+
+                    <FormControl>
+                      <input
+                        {...field}
+                        type="email"
+                        placeholder="customer@example.com"
+                        disabled={isSubmitting}
+                        className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Phone */}
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone</FormLabel>
+
+                    <FormControl>
+                      <input
+                        {...field}
+                        type="tel"
+                        placeholder="+1 555 000 0000"
+                        disabled={isSubmitting}
+                        className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Company */}
+              <FormField
+                control={form.control}
+                name="company"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company</FormLabel>
+
+                    <FormControl>
+                      <input
+                        {...field}
+                        type="text"
+                        list="customer-company-options"
+                        placeholder="Company name"
+                        disabled={isSubmitting}
+                        className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                    </FormControl>
+
+                    <datalist id="customer-company-options">
+                      {companies.map((company) => (
+                        <option
+                          key={company}
+                          value={company}
+                        />
+                      ))}
+                    </datalist>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Status */}
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+
+                    <FormControl>
+                      <select
+                        {...field}
+                        disabled={isSubmitting}
+                        className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <option value="Active">
+                          Active
+                        </option>
+
+                        <option value="Inactive">
+                          Inactive
+                        </option>
+
+                        <option value="Lead">
+                          Lead
+                        </option>
+                      </select>
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Last Contact */}
+              <FormField
+                control={form.control}
+                name="lastContactDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Last Contact Date
+                    </FormLabel>
+
+                    <FormControl>
+                      <input
+                        {...field}
+                        type="date"
+                        disabled={isSubmitting}
+                        className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Notes */}
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>Notes</FormLabel>
+
+                    <FormControl>
+                      <textarea
+                        {...field}
+                        placeholder="Add any useful notes about this customer..."
+                        rows={4}
+                        disabled={isSubmitting}
+                        className="w-full resize-y rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm leading-6 text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
 
-            {/* Email */}
-            <div>
-              <label
-                htmlFor="customer-email"
-                className="mb-2 block text-sm font-medium text-slate-300"
-              >
-                Email
-              </label>
-
-              <input
-                id="customer-email"
-                type="email"
-                value={form.email}
-                onChange={(event) =>
-                  updateField(
-                    "email",
-                    event.target.value,
-                  )
-                }
-                placeholder="customer@example.com"
+            {/* Footer */}
+            <div className="flex justify-end gap-2 border-t border-slate-700 px-5 py-4 sm:px-6">
+              <button
+                type="button"
+                onClick={onClose}
                 disabled={isSubmitting}
-                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
-              />
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label
-                htmlFor="customer-phone"
-                className="mb-2 block text-sm font-medium text-slate-300"
+                className="rounded-md border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Phone
-              </label>
+                Cancel
+              </button>
 
-              <input
-                id="customer-phone"
-                type="tel"
-                value={form.phone}
-                onChange={(event) =>
-                  updateField(
-                    "phone",
-                    event.target.value,
-                  )
-                }
-                placeholder="+1 555 000 0000"
+              <button
+                type="submit"
                 disabled={isSubmitting}
-                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
-              />
+                className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSubmitting && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+
+                {isSubmitting
+                  ? isEditMode
+                    ? "Saving..."
+                    : "Adding..."
+                  : isEditMode
+                    ? "Save Changes"
+                    : "Add Customer"}
+              </button>
             </div>
-
-            {/* Company */}
-            <div>
-              <label
-                htmlFor="customer-company"
-                className="mb-2 block text-sm font-medium text-slate-300"
-              >
-                Company
-              </label>
-
-              <input
-                id="customer-company"
-                type="text"
-                list="customer-company-options"
-                value={form.company}
-                onChange={(event) =>
-                  updateField(
-                    "company",
-                    event.target.value,
-                  )
-                }
-                placeholder="Company name"
-                disabled={isSubmitting}
-                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
-              />
-
-              <datalist id="customer-company-options">
-                {companies.map((company) => (
-                  <option
-                    key={company}
-                    value={company}
-                  />
-                ))}
-              </datalist>
-            </div>
-
-            {/* Status */}
-            <div>
-              <label
-                htmlFor="customer-status"
-                className="mb-2 block text-sm font-medium text-slate-300"
-              >
-                Status
-              </label>
-
-              <select
-                id="customer-status"
-                value={form.status}
-                onChange={(event) =>
-                  updateField(
-                    "status",
-                    event.target.value,
-                  )
-                }
-                disabled={isSubmitting}
-                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
-              >
-                <option value="Active">
-                  Active
-                </option>
-
-                <option value="Inactive">
-                  Inactive
-                </option>
-
-                <option value="Lead">
-                  Lead
-                </option>
-              </select>
-            </div>
-
-            {/* Last Contact */}
-            <div>
-              <label
-                htmlFor="customer-last-contact"
-                className="mb-2 block text-sm font-medium text-slate-300"
-              >
-                Last Contact Date
-              </label>
-
-              <input
-                id="customer-last-contact"
-                type="date"
-                value={form.lastContactDate}
-                onChange={(event) =>
-                  updateField(
-                    "lastContactDate",
-                    event.target.value,
-                  )
-                }
-                disabled={isSubmitting}
-                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
-              />
-            </div>
-
-            {/* Notes */}
-            <div className="sm:col-span-2">
-              <label
-                htmlFor="customer-notes"
-                className="mb-2 block text-sm font-medium text-slate-300"
-              >
-                Notes
-              </label>
-
-              <textarea
-                id="customer-notes"
-                value={form.notes}
-                onChange={(event) =>
-                  updateField(
-                    "notes",
-                    event.target.value,
-                  )
-                }
-                placeholder="Add any useful notes about this customer..."
-                rows={4}
-                disabled={isSubmitting}
-                className="w-full resize-y rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm leading-6 text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
-              />
-            </div>
-
-            {/* Error */}
-            {formError && (
-              <div
-                role="alert"
-                className="sm:col-span-2 rounded-md border border-red-900/60 bg-red-950/40 px-3 py-2.5 text-sm text-red-300"
-              >
-                {formError}
-              </div>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="flex justify-end gap-2 border-t border-slate-700 px-5 py-4 sm:px-6">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="rounded-md border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Cancel
-            </button>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isSubmitting && (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
-
-              {isSubmitting
-                ? isEditMode
-                  ? "Saving..."
-                  : "Adding..."
-                : isEditMode
-                  ? "Save Changes"
-                  : "Add Customer"}
-            </button>
-          </div>
-        </form>
+          </form>
+        </Form>
       </div>
     </div>
   );
