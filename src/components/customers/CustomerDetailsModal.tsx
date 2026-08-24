@@ -3,17 +3,22 @@
 import {
   CalendarDays,
   Mail,
+  Pencil,
   Phone,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
 
 import type { Customer } from "@/types/customer";
+import LastContactEditor from "./LastContactEditor";
 
 interface CustomerDetailsModalProps {
   customer: Customer | null;
   isOpen: boolean;
   onClose: () => void;
+  onEdit: (customer: Customer) => void;
+  onDelete: (customer: Customer) => void;
 }
 
 function getStatusClasses(
@@ -46,7 +51,10 @@ export default function CustomerDetailsModal({
   customer,
   isOpen,
   onClose,
+  onEdit,
+  onDelete,
 }: CustomerDetailsModalProps) {
+
   if (!isOpen || !customer) {
     return null;
   }
@@ -66,24 +74,22 @@ export default function CustomerDetailsModal({
       <div className="w-full max-w-2xl overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-slate-700 px-5 py-4 sm:px-6">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-slate-300">
-                <UserRound className="h-5 w-5" />
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-slate-300">
+              <UserRound className="h-5 w-5" />
+            </div>
 
-              <div>
-                <h2
-                  id="customer-details-title"
-                  className="text-lg font-semibold text-white"
-                >
-                  {customer.name}
-                </h2>
+            <div>
+              <h2
+                id="customer-details-title"
+                className="text-lg font-semibold text-white"
+              >
+                {customer.name}
+              </h2>
 
-                <p className="text-sm text-slate-500">
-                  {customer.id}
-                </p>
-              </div>
+              <p className="text-sm text-slate-500">
+                {customer.id}
+              </p>
             </div>
           </div>
 
@@ -154,14 +160,24 @@ export default function CustomerDetailsModal({
 
             {/* Last Contact */}
             <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-4 sm:col-span-2">
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
                 <CalendarDays className="h-4 w-4" />
                 Last Contact
-              </div>
+            </div>
 
-              <p className="mt-2 text-sm text-slate-200">
-                {formatDate(customer.lastContactDate)}
-              </p>
+            <p className="mt-2 text-sm text-slate-200">
+                {formatDate(
+                customer.lastContactDate,
+                )}
+            </p>
+
+            <LastContactEditor
+                key={customer.id}
+                customerId={customer.id}
+                currentDate={
+                customer.lastContactDate
+                }
+            />
             </div>
 
             {/* Notes */}
@@ -171,21 +187,42 @@ export default function CustomerDetailsModal({
               </p>
 
               <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
-                {customer.notes || "No notes available."}
+                {customer.notes ||
+                  "No notes available."}
               </p>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end border-t border-slate-700 px-5 py-4 sm:px-6">
+        <div className="flex flex-col gap-2 border-t border-slate-700 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-md border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-700"
+            onClick={() => onDelete(customer)}
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-red-900/70 bg-red-950/30 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-950/60 hover:text-red-200"
           >
-            Close
+            <Trash2 className="h-4 w-4" />
+            Delete Customer
           </button>
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white"
+            >
+              Close
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onEdit(customer)}
+              className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
+            >
+              <Pencil className="h-4 w-4" />
+              Edit Customer
+            </button>
+          </div>
         </div>
       </div>
     </div>

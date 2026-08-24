@@ -10,6 +10,7 @@ import {
   Filter,
 } from "lucide-react";
 
+import CustomerDeleteConfirmModal from "@/components/customers/CustomerDeleteConfirmModal";
 import CustomerDetailsModal from "@/components/customers/CustomerDetailsModal";
 import CustomerFilters from "@/components/customers/CustomerFilters";
 import CustomerFormModal from "@/components/customers/CustomerFormModal";
@@ -73,6 +74,11 @@ export default function CustomersPage() {
 
     const [isAddCustomerOpen, setIsAddCustomerOpen] =
         useState(false);    
+    const [isEditCustomerOpen, setIsEditCustomerOpen] =
+        useState(false);
+
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] =
+        useState(false);
 
     const [savedFilters, setSavedFilters] =
     useState<SavedFilter[]>(() => {
@@ -525,6 +531,32 @@ export default function CustomersPage() {
     setIsCustomerDetailsOpen(true);
   };
 
+  const handleEditCustomer = (
+    customer: Customer,
+  ) => {
+    setSelectedCustomer(customer);
+    setIsCustomerDetailsOpen(false);
+    setIsEditCustomerOpen(true);
+  };
+
+  const handleDeleteCustomer = (
+    customer: Customer,
+  ) => {
+    setSelectedCustomer(customer);
+    setIsCustomerDetailsOpen(false);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleCustomerDeleted = () => {
+    setIsDeleteConfirmOpen(false);
+    setSelectedCustomer(null);
+  };
+
+  const handleCloseEditCustomer = () => {
+    setIsEditCustomerOpen(false);
+    setSelectedCustomer(null);
+  };
+
   const handleCloseCustomerDetails = () => {
     setIsCustomerDetailsOpen(false);
     setSelectedCustomer(null);
@@ -817,11 +849,13 @@ export default function CustomersPage() {
             handleDeleteSavedFilter
         }
         />
-
+        
         <CustomerDetailsModal
         customer={selectedCustomer}
         isOpen={isCustomerDetailsOpen}
         onClose={handleCloseCustomerDetails}
+        onEdit={handleEditCustomer}
+        onDelete={handleDeleteCustomer}
         />
 
         {isAddCustomerOpen && (
@@ -832,6 +866,25 @@ export default function CustomersPage() {
             }
         />
         )}
+
+        {isEditCustomerOpen &&
+        selectedCustomer && (
+            <CustomerFormModal
+            key={selectedCustomer.id}
+            customer={selectedCustomer}
+            companies={companies}
+            onClose={handleCloseEditCustomer}
+            />
+        )}
+
+        <CustomerDeleteConfirmModal
+        customer={selectedCustomer}
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => {
+            setIsDeleteConfirmOpen(false);
+        }}
+        onDeleted={handleCustomerDeleted}
+        />
     </main>
   );
 }

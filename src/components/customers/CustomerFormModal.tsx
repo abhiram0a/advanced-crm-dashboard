@@ -5,14 +5,16 @@ import { Loader2, X } from "lucide-react";
 
 import {
   useCreateCustomer,
+  useUpdateCustomer,
 } from "@/hooks/useCustomers";
 
 import type {
+  Customer,
   CustomerStatus,
 } from "@/types/customer";
 
 interface CustomerFormModalProps {
-//   isOpen: boolean;
+  customer?: Customer | null;
   companies: string[];
   onClose: () => void;
 }
@@ -27,30 +29,52 @@ interface FormState {
   notes: string;
 }
 
-const initialFormState: FormState = {
-  name: "",
-  email: "",
-  phone: "",
-  company: "",
-  status: "Lead",
-  lastContactDate: "",
-  notes: "",
-};
+function getInitialFormState(
+  customer?: Customer | null,
+): FormState {
+  if (customer) {
+    return {
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      company: customer.company,
+      status: customer.status,
+      lastContactDate:
+        customer.lastContactDate,
+      notes: customer.notes,
+    };
+  }
+
+  return {
+    name: "",
+    email: "",
+    phone: "",
+    company: "",
+    status: "Lead",
+    lastContactDate: "",
+    notes: "",
+  };
+}
 
 export default function CustomerFormModal({
-//   isOpen,
+  customer = null,
   companies,
   onClose,
 }: CustomerFormModalProps) {
   const createCustomerMutation =
     useCreateCustomer();
 
-  const [form, setForm] =
-    useState<FormState>(initialFormState);
+  const updateCustomerMutation =
+    useUpdateCustomer();
+
+  const isEditMode = Boolean(customer);
+
+  const [form, setForm] = useState<FormState>(() =>
+    getInitialFormState(customer),
+  );
 
   const [formError, setFormError] =
     useState("");
-
 
   const updateField = (
     field: keyof FormState,
@@ -97,36 +121,55 @@ export default function CustomerFormModal({
     }
 
     try {
-      await createCustomerMutation.mutateAsync({
-        name: form.name.trim(),
-        email: form.email.trim(),
-        phone: form.phone.trim(),
-        company: form.company.trim(),
-        status: form.status,
-        lastContactDate:
-          form.lastContactDate,
-        notes: form.notes.trim(),
-      });
+      if (isEditMode && customer) {
+        await updateCustomerMutation.mutateAsync({
+          customerId: customer.id,
+          input: {
+            name: form.name.trim(),
+            email: form.email.trim(),
+            phone: form.phone.trim(),
+            company: form.company.trim(),
+            status: form.status,
+            lastContactDate:
+              form.lastContactDate,
+            notes: form.notes.trim(),
+          },
+        });
+      } else {
+        await createCustomerMutation.mutateAsync({
+          name: form.name.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim(),
+          company: form.company.trim(),
+          status: form.status,
+          lastContactDate:
+            form.lastContactDate,
+          notes: form.notes.trim(),
+        });
+      }
 
       onClose();
     } catch (error) {
       setFormError(
         error instanceof Error
           ? error.message
-          : "Unable to create customer.",
+          : isEditMode
+            ? "Unable to update customer."
+            : "Unable to create customer.",
       );
     }
   };
 
   const isSubmitting =
-    createCustomerMutation.isPending;
+    createCustomerMutation.isPending ||
+    updateCustomerMutation.isPending;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="add-customer-title"
+      aria-labelledby="customer-form-title"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           if (!isSubmitting) {
@@ -140,14 +183,18 @@ export default function CustomerFormModal({
         <div className="flex items-start justify-between border-b border-slate-700 px-5 py-4 sm:px-6">
           <div>
             <h2
-              id="add-customer-title"
+              id="customer-form-title"
               className="text-lg font-semibold text-white"
             >
-              Add Customer
+              {isEditMode
+                ? "Edit Customer"
+                : "Add Customer"}
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Add a new customer to your CRM.
+              {isEditMode
+                ? "Update the customer's information."
+                : "Add a new customer to your CRM."}
             </p>
           </div>
 
@@ -155,7 +202,7 @@ export default function CustomerFormModal({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            aria-label="Close add customer form"
+            aria-label="Close customer form"
             className="rounded-md p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             <X className="h-5 w-5" />
@@ -188,8 +235,8 @@ export default function CustomerFormModal({
                   )
                 }
                 placeholder="Enter customer name"
-                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
                 disabled={isSubmitting}
+                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
               />
             </div>
 
@@ -213,8 +260,8 @@ export default function CustomerFormModal({
                   )
                 }
                 placeholder="customer@example.com"
-                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
                 disabled={isSubmitting}
+                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
               />
             </div>
 
@@ -238,8 +285,8 @@ export default function CustomerFormModal({
                   )
                 }
                 placeholder="+1 555 000 0000"
-                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
                 disabled={isSubmitting}
+                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
               />
             </div>
 
@@ -264,8 +311,8 @@ export default function CustomerFormModal({
                   )
                 }
                 placeholder="Company name"
-                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
                 disabled={isSubmitting}
+                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
               />
 
               <datalist id="customer-company-options">
@@ -296,8 +343,8 @@ export default function CustomerFormModal({
                     event.target.value,
                   )
                 }
-                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
                 disabled={isSubmitting}
+                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
               >
                 <option value="Active">
                   Active
@@ -313,7 +360,7 @@ export default function CustomerFormModal({
               </select>
             </div>
 
-            {/* Last Contact Date */}
+            {/* Last Contact */}
             <div>
               <label
                 htmlFor="customer-last-contact"
@@ -325,17 +372,15 @@ export default function CustomerFormModal({
               <input
                 id="customer-last-contact"
                 type="date"
-                value={
-                  form.lastContactDate
-                }
+                value={form.lastContactDate}
                 onChange={(event) =>
                   updateField(
                     "lastContactDate",
                     event.target.value,
                   )
                 }
-                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
                 disabled={isSubmitting}
+                className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
               />
             </div>
 
@@ -359,8 +404,8 @@ export default function CustomerFormModal({
                 }
                 placeholder="Add any useful notes about this customer..."
                 rows={4}
-                className="w-full resize-y rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm leading-6 text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
                 disabled={isSubmitting}
+                className="w-full resize-y rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm leading-6 text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
               />
             </div>
 
@@ -396,8 +441,12 @@ export default function CustomerFormModal({
               )}
 
               {isSubmitting
-                ? "Adding..."
-                : "Add Customer"}
+                ? isEditMode
+                  ? "Saving..."
+                  : "Adding..."
+                : isEditMode
+                  ? "Save Changes"
+                  : "Add Customer"}
             </button>
           </div>
         </form>
