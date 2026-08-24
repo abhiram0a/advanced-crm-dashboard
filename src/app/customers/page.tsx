@@ -104,7 +104,29 @@ export default function CustomersPage() {
       }
     });
 
-
+    const [savedFilterOrder, setSavedFilterOrder] =
+    useState<string[]>(() => {
+      if (typeof window === "undefined") {
+        return [];
+      }
+  
+      try {
+        const storedOrder =
+          localStorage.getItem(
+            "crm-saved-filter-order",
+          );
+  
+        if (!storedOrder) {
+          return [];
+        }
+  
+        return JSON.parse(
+          storedOrder,
+        ) as string[];
+      } catch {
+        return [];
+      }
+    });
 
       useEffect(() => {
         localStorage.setItem(
@@ -112,6 +134,13 @@ export default function CustomersPage() {
           JSON.stringify(savedFilters),
         );
       }, [savedFilters]);
+
+      useEffect(() => {
+        localStorage.setItem(
+          "crm-saved-filter-order",
+          JSON.stringify(savedFilterOrder),
+        );
+      }, [savedFilterOrder]);
 
       const filterTemplates = useMemo<SavedFilter[]>(
         () => {
@@ -186,13 +215,51 @@ export default function CustomersPage() {
         [customers],
       );
 
-      const allSavedFilters = useMemo(
-        () => [
-          ...filterTemplates,
-          ...savedFilters,
-        ],
-        [filterTemplates, savedFilters],
-      );
+        const allSavedFilters = useMemo(() => {
+        const combinedFilters = [
+            ...filterTemplates,
+            ...savedFilters,
+        ];
+
+        if (savedFilterOrder.length === 0) {
+            return combinedFilters;
+        }
+
+        const filtersById = new Map(
+            combinedFilters.map((filter) => [
+            filter.id,
+            filter,
+            ]),
+        );
+
+        const orderedFilters = savedFilterOrder
+            .map((id) => filtersById.get(id))
+            .filter(
+            (
+                filter,
+            ): filter is SavedFilter =>
+                Boolean(filter),
+            );
+
+        const orderedIds = new Set(
+            orderedFilters.map(
+            (filter) => filter.id,
+            ),
+        );
+
+        const newFilters = combinedFilters.filter(
+            (filter) => !orderedIds.has(filter.id),
+        );
+
+        return [
+            ...orderedFilters,
+            ...newFilters,
+        ];
+        }, [
+        filterTemplates,
+        savedFilters,
+        savedFilterOrder,
+        ]);
 
   /*
    * Build the company list directly from the
@@ -463,9 +530,14 @@ export default function CustomersPage() {
     };
   
     setSavedFilters((current) => [
-      ...current,
-      newSavedFilter,
-    ]);
+        ...current,
+        newSavedFilter,
+      ]);
+      
+      setSavedFilterOrder((current) => [
+        ...current,
+        newSavedFilter.id,
+      ]);
   };
 
   const handleApplySavedFilter = (
@@ -497,6 +569,51 @@ export default function CustomersPage() {
           savedFilterId,
       ),
     );
+  
+    setSavedFilterOrder((current) =>
+      current.filter(
+        (id) => id !== savedFilterId,
+      ),
+    );
+  };
+
+  const handleReorderSavedFilters = (
+    activeId: string,
+    overId: string,
+  ) => {
+    const currentOrder =
+      allSavedFilters.map(
+        (savedFilter) => savedFilter.id,
+      );
+  
+    const oldIndex =
+      currentOrder.indexOf(activeId);
+  
+    const newIndex =
+      currentOrder.indexOf(overId);
+  
+    if (
+      oldIndex === -1 ||
+      newIndex === -1 ||
+      oldIndex === newIndex
+    ) {
+      return;
+    }
+  
+    const reorderedOrder = [
+      ...currentOrder,
+    ];
+  
+    const [movedItem] =
+      reorderedOrder.splice(oldIndex, 1);
+  
+    reorderedOrder.splice(
+      newIndex,
+      0,
+      movedItem,
+    );
+  
+    setSavedFilterOrder(reorderedOrder);
   };
 
   const handleApplyFilters = () => {
@@ -847,6 +964,9 @@ export default function CustomersPage() {
         }
         onDeleteSavedFilter={
             handleDeleteSavedFilter
+        }
+        onReorderSavedFilters={
+            handleReorderSavedFilters
         }
         />
         

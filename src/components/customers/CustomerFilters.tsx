@@ -4,6 +4,7 @@ import {
     Check,
     ChevronDown,
     Filter,
+    GripVertical,
     Save,
     Trash2,
     X,
@@ -13,6 +14,96 @@ import { useState } from "react";
 
 import type { CustomerFilterState } from "@/types/customerFilters";
 import type { SavedFilter } from "@/types/savedFilters";
+
+import {
+    DndContext,
+    closestCenter,
+    PointerSensor,
+    useSensor,
+    useSensors,
+  } from "@dnd-kit/core";
+  
+  import type {
+    DragEndEvent,
+  } from "@dnd-kit/core";
+  
+  import {
+    SortableContext,
+    useSortable,
+    verticalListSortingStrategy,
+  } from "@dnd-kit/sortable";
+  
+  import { CSS } from "@dnd-kit/utilities";
+
+
+  interface SortableSavedFilterProps {
+    savedFilter: SavedFilter;
+    onApply: (savedFilter: SavedFilter) => void;
+    onDelete: (savedFilterId: string) => void;
+  }
+  
+  function SortableSavedFilter({
+    savedFilter,
+    onApply,
+    onDelete,
+  }: SortableSavedFilterProps) {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({
+      id: savedFilter.id,
+    });
+  
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    };
+  
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`group flex items-center gap-2 rounded-md border border-slate-800 bg-slate-900 p-2 ${
+          isDragging
+            ? "z-10 border-blue-500/50 bg-slate-800 shadow-xl"
+            : ""
+        }`}
+      >
+        <button
+          type="button"
+          aria-label={`Reorder ${savedFilter.name}`}
+          className="cursor-grab touch-none rounded-md p-2 text-slate-600 transition hover:bg-slate-800 hover:text-slate-300 active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+  
+        <button
+          type="button"
+          onClick={() => onApply(savedFilter)}
+          className="flex-1 rounded-md px-2 py-2 text-left text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white"
+        >
+          {savedFilter.name}
+        </button>
+  
+        {!savedFilter.isTemplate && (
+          <button
+            type="button"
+            onClick={() => onDelete(savedFilter.id)}
+            aria-label={`Delete ${savedFilter.name}`}
+            className="rounded-md p-2 text-slate-600 transition hover:bg-red-950/40 hover:text-red-400"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    );
+  }
 
 interface CustomerFiltersProps {
     isOpen: boolean;
@@ -33,6 +124,10 @@ interface CustomerFiltersProps {
     onDeleteSavedFilter: (
       savedFilterId: string,
     ) => void;
+    onReorderSavedFilters: (
+        activeId: string,
+        overId: string,
+      ) => void;
   }
 
   export default function CustomerFilters({
@@ -48,10 +143,19 @@ interface CustomerFiltersProps {
     onSave,
     onApplySavedFilter,
     onDeleteSavedFilter,
+    onReorderSavedFilters,
   }: CustomerFiltersProps) {
     const [isSaving, setIsSaving] = useState(false);
     const [filterName, setFilterName] = useState("");
-  
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+          activationConstraint: {
+            distance: 6,
+          },
+        }),
+      );
+
     if (!isOpen) {
       return null;
     }
@@ -83,6 +187,21 @@ interface CustomerFiltersProps {
           )
         : [...filters.companies, company],
     });
+  };
+
+  const handleDragEnd = (
+    event: DragEndEvent,
+  ) => {
+    const { active, over } = event;
+  
+    if (!over || active.id === over.id) {
+      return;
+    }
+  
+    onReorderSavedFilters(
+      String(active.id),
+      String(over.id),
+    );
   };
 
   return (
@@ -440,47 +559,42 @@ interface CustomerFiltersProps {
             {savedFilters.length > 0 && (
             <section>
                 <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-medium text-slate-200">
+                <div>
+                    <h3 className="text-sm font-medium text-slate-200">
                     Saved Filters
-                </h3>
+                    </h3>
+
+                    <p className="mt-1 text-xs text-slate-500">
+                    Drag to reorder
+                    </p>
+                </div>
                 </div>
 
-                <div className="space-y-2">
-                {savedFilters.map((savedFilter) => (
-                    <div
-                    key={savedFilter.id}
-                    className="group flex items-center gap-2 rounded-md border border-slate-800 bg-slate-900 p-2"
-                    >
-                    <button
-                        type="button"
-                        onClick={() =>
-                        onApplySavedFilter(savedFilter)
-                        }
-                        className="flex-1 rounded-md px-2 py-2 text-left text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white"
-                    >
-                        {savedFilter.name}
-                    </button>
-
-                    {!savedFilter.isTemplate && (
-                        <button
-                        type="button"
-                        onClick={() =>
-                            onDeleteSavedFilter(
-                            savedFilter.id,
-                            )
-                        }
-                        aria-label={`Delete ${savedFilter.name}`}
-                        className="rounded-md p-2 text-slate-600 transition hover:bg-red-950/40 hover:text-red-400"
-                        >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+                >
+                <SortableContext
+                    items={savedFilters.map(
+                    (savedFilter) => savedFilter.id,
                     )}
+                    strategy={verticalListSortingStrategy}
+                >
+                    <div className="space-y-2">
+                    {savedFilters.map((savedFilter) => (
+                        <SortableSavedFilter
+                        key={savedFilter.id}
+                        savedFilter={savedFilter}
+                        onApply={onApplySavedFilter}
+                        onDelete={onDeleteSavedFilter}
+                        />
+                    ))}
                     </div>
-                ))}
-                </div>
+                </SortableContext>
+                </DndContext>
             </section>
             )}
-
           </div>
         </div>
 
