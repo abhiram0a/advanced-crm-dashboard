@@ -10,7 +10,9 @@ import {
   Filter,
 } from "lucide-react";
 
+import CustomerDetailsModal from "@/components/customers/CustomerDetailsModal";
 import CustomerFilters from "@/components/customers/CustomerFilters";
+import CustomerFormModal from "@/components/customers/CustomerFormModal";
 import CustomerTable from "@/components/customers/CustomerTable";
 import { useCustomers } from "@/hooks/useCustomers";
 
@@ -20,6 +22,7 @@ import {
 } from "@/types/customerFilters";
 
 import type { SavedFilter } from "@/types/savedFilters";
+import type { Customer } from "@/types/customer";
 
 
 type SortField =
@@ -61,6 +64,15 @@ export default function CustomersPage() {
     useState<CustomerFilterState>(
       emptyCustomerFilters,
     );
+
+    const [selectedCustomer, setSelectedCustomer] =
+        useState<Customer | null>(null);
+  
+    const [isCustomerDetailsOpen, setIsCustomerDetailsOpen] =
+        useState(false);
+
+    const [isAddCustomerOpen, setIsAddCustomerOpen] =
+        useState(false);    
 
     const [savedFilters, setSavedFilters] =
     useState<SavedFilter[]>(() => {
@@ -506,6 +518,18 @@ export default function CustomersPage() {
     setIsFilterOpen(true);
   };
 
+  const handleViewCustomer = (
+    customer: Customer,
+  ) => {
+    setSelectedCustomer(customer);
+    setIsCustomerDetailsOpen(true);
+  };
+
+  const handleCloseCustomerDetails = () => {
+    setIsCustomerDetailsOpen(false);
+    setSelectedCustomer(null);
+  };
+
   return (
     <main className="space-y-5 p-4 sm:space-y-6 sm:p-6">
       {/* Page heading */}
@@ -522,22 +546,40 @@ export default function CustomersPage() {
             </p>
           </div>
 
-          {/* Filter button */}
-          <button
-            type="button"
-            onClick={handleOpenFilters}
-            className="relative inline-flex shrink-0 items-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800"
-          >
-            <Filter className="h-4 w-4" />
+            <div className="flex items-center gap-2">
+            <button
+                type="button"
+                onClick={() =>
+                setIsAddCustomerOpen(true)
+                }
+                className="inline-flex shrink-0 items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
+            >
+                <span
+                aria-hidden="true"
+                className="text-base leading-none"
+                >
+                +
+                </span>
 
-            <span>Filters</span>
+                <span>Add Customer</span>
+            </button>
 
-            {activeFilterCount > 0 && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-semibold text-white">
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
+            <button
+                type="button"
+                onClick={handleOpenFilters}
+                className="relative inline-flex shrink-0 items-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800"
+            >
+                <Filter className="h-4 w-4" />
+
+                <span>Filters</span>
+
+                {activeFilterCount > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-semibold text-white">
+                    {activeFilterCount}
+                </span>
+                )}
+            </button>
+            </div>
         </div>
       </div>
 
@@ -659,6 +701,7 @@ export default function CustomersPage() {
               sortField={sortField}
               sortDirection={sortDirection}
               onSort={handleSort}
+              onViewCustomer={handleViewCustomer}
             />
           )}
 
@@ -774,6 +817,21 @@ export default function CustomersPage() {
             handleDeleteSavedFilter
         }
         />
+
+        <CustomerDetailsModal
+        customer={selectedCustomer}
+        isOpen={isCustomerDetailsOpen}
+        onClose={handleCloseCustomerDetails}
+        />
+
+        {isAddCustomerOpen && (
+        <CustomerFormModal
+            companies={companies}
+            onClose={() =>
+            setIsAddCustomerOpen(false)
+            }
+        />
+        )}
     </main>
   );
 }

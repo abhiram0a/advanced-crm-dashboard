@@ -11,6 +11,7 @@ interface CustomerTableProps {
   sortField: SortField;
   sortDirection: SortDirection;
   onSort: (field: SortField) => void;
+  onViewCustomer: (customer: Customer) => void;
 }
 
 function getStatusClasses(status: Customer["status"]) {
@@ -81,6 +82,7 @@ export default function CustomerTable({
   sortField,
   sortDirection,
   onSort,
+  onViewCustomer,
 }: CustomerTableProps) {
   if (customers.length === 0) {
     return (
@@ -197,6 +199,7 @@ export default function CustomerTable({
                 <td className="px-5 py-4 text-right">
                   <button
                     type="button"
+                    onClick={() => onViewCustomer(customer)}
                     className="text-sm font-medium text-slate-300 transition hover:text-white"
                   >
                     View
